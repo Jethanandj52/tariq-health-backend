@@ -1,10 +1,8 @@
 const pdf = require("pdf-parse");
 const axios = require("axios");
 const Tesseract = require("tesseract.js");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// ✅ Gemini AI Client Config
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 /* ==========================
    🔍 Extract Text from PDF
@@ -19,32 +17,50 @@ async function extractTextFromPDF(pdfUrl) {
    🔍 Extract Text from Image (OCR)
 ========================== */
 async function extractTextFromImage(imageUrl) {
-  const { data: { text } } = await Tesseract.recognize(imageUrl, "eng");
+  const {
+    data: { text },
+  } = await Tesseract.recognize(imageUrl, "eng");
   return text;
 }
 
 /* ==========================
-   🤖 Generate AI Feedback using Gemini
+   🤖 Generate AI Feedback (Gemini REST API)
 ========================== */
-async function generateAIAnalysis(text) {
+async function generateAIAnalysis(extractedText) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    if (!extractedText || extractedText.trim().length === 0) {
+      return { feedback: "❌ No readable text found in report." };
+    }
+
     const prompt = `
-      You are a medical analysis assistant.
-      Analyze the following lab report text and generate:
-      1. Summary of findings
-      2. Possible health implications
-      3. Simple advice in 2–3 lines.
+You are a helpful AI medical assistant.
+Analyze the following lab report and generate a structured response:
 
-      Report text:
-      ${text}
-    `;
+1️⃣ Summary of key findings  
+2️⃣ Possible health implications  
+3️⃣ Recommendations for the patient  
+4️⃣ Is report normal or abnormal?
 
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+Keep it short and clear for non-technical users.
+
+Report Text:
+${extractedText.slice(0, 8000)}
+`;
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      { contents: [{ parts: [{ text: prompt }] }] },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    const aiText =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "⚠️ Gemini returned no output.";
+
+    return { feedback: aiText };
   } catch (err) {
-    console.error("AI Analysis error:", err);
-    return "⚠️ AI analysis failed. Please try again later.";
+    console.error("AI Analysis error:", err.message);
+    return { error: "⚠️ AI analysis failed. Please try again later." };
   }
 }
 

@@ -12,7 +12,7 @@ const {
 const router = express.Router();
 
 /* ==============================
-   ☁️ CLOUDINARY CONFIG
+   ☁ CLOUDINARY CONFIG
 ============================== */
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -29,10 +29,10 @@ const storage = new CloudinaryStorage({
     const isPDF = file.mimetype === "application/pdf";
     return {
       folder: "healthapp/reports",
-      resource_type: isPDF ? "raw" : "image", // ✅ important: PDF ke liye 'raw'
-      access_mode: "public",
+      resource_type: isPDF ? "raw" : "image", // ✅ PDF ke liye 'raw'
       allowed_formats: ["jpg", "jpeg", "png", "pdf"],
-      public_id: `${Date.now()}-${file.originalname.split(".")[0]}`,
+      access_mode: "public",
+      public_id: `${Date.now()}-${file.originalname.split(".")[0]}`, // ✅ fix: proper string template
     };
   },
 });
@@ -62,8 +62,8 @@ router.post("/add", upload.array("files", 5), async (req, res) => {
     } = req.body;
 
     // ✅ STEP 1: Uploaded files info
-    const files = req.files.map((file) => ({
-      fileUrl: file.path || file.secure_url, // direct Cloudinary URL
+    const files = (req.files || []).map((file) => ({
+      fileUrl: file.path || file.secure_url,
       fileType: file.mimetype.includes("pdf") ? "pdf" : "image",
     }));
 
@@ -88,28 +88,29 @@ router.post("/add", upload.array("files", 5), async (req, res) => {
 
     // ✅ STEP 3: Extract text
     let extractedText = "";
-    const firstFile = files[0];
-
-    try {
-      console.log("Extracting from:", firstFile.fileUrl);
-      if (firstFile.fileType === "pdf") {
-        extractedText = await extractTextFromPDF(firstFile.fileUrl);
-      } else {
-        extractedText = await extractTextFromImage(firstFile.fileUrl);
+    if (files.length > 0) {
+      const firstFile = files[0];
+      try {
+        console.log("🧠 Extracting from:", firstFile.fileUrl);
+        if (firstFile.fileType === "pdf") {
+          extractedText = await extractTextFromPDF(firstFile.fileUrl);
+        } else {
+          extractedText = await extractTextFromImage(firstFile.fileUrl);
+        }
+      } catch (err) {
+        console.error("❌ Text extraction failed:", err.message);
       }
-    } catch (err) {
-      console.error("Text extraction failed:", err.message);
     }
 
     // ✅ STEP 4: AI Analysis
     if (extractedText && extractedText.length > 30) {
       const aiAnalysis = await generateAIAnalysis(extractedText);
       report.aiAnalysis = aiAnalysis;
-      await report.save();
     } else {
-      report.aiAnalysis = "⚠️ No readable text found in file for AI analysis.";
-      await report.save();
+      report.aiAnalysis = "⚠ No readable text found in file for AI analysis.";
     }
+
+    await report.save();
 
     res.status(201).json({
       success: true,
@@ -117,7 +118,7 @@ router.post("/add", upload.array("files", 5), async (req, res) => {
       report,
     });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("❌ Upload error:", error);
     res.status(500).json({
       success: false,
       message: "Error while uploading report or running AI analysis",
@@ -141,7 +142,7 @@ router.get("/member/:familyMemberId", async (req, res) => {
       reports,
     });
   } catch (error) {
-    console.error("Fetch reports error:", error);
+    console.error("❌ Fetch reports error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -153,24 +154,29 @@ router.get("/:id", async (req, res) => {
   try {
     const report = await Report.findById(req.params.id).populate("familyMember");
     if (!report)
-      return res.status(404).json({ success: false, message: "Report not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Report not found" });
 
     res.status(200).json({ success: true, report });
   } catch (error) {
-    console.error("Fetch single report error:", error);
+    console.error("❌ Fetch single report error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
 /* ==============================
-   ✏️ UPDATE report (re-run AI optional)
+   ✏ UPDATE report (Re-run AI optional)
 ============================== */
 router.put("/:id", upload.array("files", 5), async (req, res) => {
   try {
     const report = await Report.findById(req.params.id);
     if (!report)
-      return res.status(404).json({ success: false, message: "Report not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Report not found" });
 
+    // ✅ Add new uploaded files
     let updatedFiles = report.files || [];
     if (req.files && req.files.length > 0) {
       const newFiles = req.files.map((file) => ({
@@ -214,7 +220,7 @@ router.put("/:id", upload.array("files", 5), async (req, res) => {
       files: updatedFiles,
     });
 
-    // Optional AI re-run
+    // ✅ Optional AI re-run
     if (rerunAI === "true" && updatedFiles.length > 0) {
       try {
         const firstFile = updatedFiles[0];
@@ -224,10 +230,12 @@ router.put("/:id", upload.array("files", 5), async (req, res) => {
         } else {
           extractedText = await extractTextFromImage(firstFile.fileUrl);
         }
-        const aiAnalysis = await generateAIAnalysis(extractedText || "No extracted text found");
+        const aiAnalysis = await generateAIAnalysis(
+          extractedText || "No extracted text found"
+        );
         report.aiAnalysis = aiAnalysis;
       } catch (err) {
-        console.warn("AI re-analysis failed:", err);
+        console.warn("⚠ AI re-analysis failed:", err);
       }
     }
 
@@ -238,7 +246,7 @@ router.put("/:id", upload.array("files", 5), async (req, res) => {
       updatedReport,
     });
   } catch (error) {
-    console.error("Update report error:", error);
+    console.error("❌ Update report error:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -250,14 +258,16 @@ router.delete("/:id", async (req, res) => {
   try {
     const deleted = await Report.findByIdAndDelete(req.params.id);
     if (!deleted)
-      return res.status(404).json({ success: false, message: "Report not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Report not found" });
 
     res.status(200).json({
       success: true,
-      message: "Report deleted successfully 🗑️",
+      message: "Report deleted successfully 🗑",
     });
   } catch (error) {
-    console.error("Delete report error:", error);
+    console.error("❌ Delete report error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
