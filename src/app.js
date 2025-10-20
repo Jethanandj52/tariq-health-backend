@@ -36,16 +36,11 @@ app.get('/',(req,res)=>{
 
 // app.use("/api/doctors", doctorRoutes);
 
-
 dbConnected()
-    .then(() => console.log("Connected to database successfully"))
-    .catch(err => console.error("Could not connect to database", err));
+  .then(() => console.log("Connected to database successfully"))
+  .catch(err => console.error("Could not connect to database", err));
 
+module.exports = app;
 
-
-app.listen(port || 3000,()=>{
-    console.log("welcom",port);
-    
-})
 
  
