@@ -30,6 +30,10 @@ app.use('/api/doctors',doctorRoutes)
 app.use('/api/family',family)
 app.use("/api/reports", reportRoutes);
 
+app.get('/',(req,res)=>{
+    res.send("API is running....")
+});
+
 // app.use("/api/doctors", doctorRoutes);
 
 
