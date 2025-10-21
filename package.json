@@ -1,12 +1,11 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "app.js",
- "scripts": {
-  "start": "node src/app.js",
-  "dev": "node src/app.js"
-}
-,
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -27,6 +26,7 @@
     "nodemailer": "^7.0.5",
     "nodemon": "^3.1.10",
     "pdf-parse": "^2.4.3",
+    "serverless-http": "^4.0.0",
     "tesseract.js": "^6.0.1",
     "validator": "^13.15.15"
   }
