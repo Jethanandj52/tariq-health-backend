@@ -37,13 +37,16 @@ app.get("/", (req, res) => {
 dbConnected()
   .then(() => console.log("✅ MongoDB connected successfully"))
   .catch((err) => console.error("❌ DB connection failed:", err));
+  app.listen(process.env.PORT || 3000, () => {
+    console.log(`Server is running on port ${process.env.PORT || 3000}`);
+  });
 
 // ✅ Local run only
-if (process.env.NODE_ENV !== "production") {
-  const port = process.env.PORT || 7000;
-  app.listen(port, () => console.log(`🚀 Server running locally on port ${port}`));
-}
+// if (process.env.NODE_ENV !== "production") {
+//   const port = process.env.PORT || 7000;
+//   app.listen(port, () => console.log(`🚀 Server running locally on port ${port}`));
+// }
 
-// ✅ The magic export for Vercel
-module.exports = app;
-module.exports.handler = serverless(app); // 👈 ye line sabse zaroori hai
+// // ✅ The magic export for Vercel
+// module.exports = app;
+// module.exports.handler = serverless(app); // 👈 ye line sabse zaroori hai
