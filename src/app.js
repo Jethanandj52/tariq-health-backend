@@ -3,8 +3,8 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const mongoose = require("mongoose");
 
-const { dbConnected } = require("./config/dataBase");
 const { routes } = require("./routes/auth");
 const doctorRoutes = require("./routes/doctorRoutes");
 const familyRoutes = require("./routes/familyRoutes");
@@ -12,6 +12,7 @@ const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
+// Middlewares
 app.use(express.json());
 app.use(cookieParser());
 app.use(
@@ -22,31 +23,47 @@ app.use(
   })
 );
 
-// ✅ Lazy DB connection (Vercel-safe)
-let isConnected = false;
-app.use(async (req, res, next) => {
-  if (!isConnected) {
-    try {
-      await dbConnected();
-      isConnected = true;
-      console.log("✅ MongoDB connected successfully");
-    } catch (err) {
-      console.error("❌ DB connection failed:", err.message);
-    }
+// Lazy DB Connection
+let cachedConnection = null;
+
+async function connectToDatabase() {
+  if (cachedConnection && mongoose.connection.readyState === 1) {
+    return cachedConnection;
   }
-  next();
+
+  try {
+    cachedConnection = await mongoose.connect(process.env.DB_URL, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+    });
+    console.log("✅ MongoDB connected successfully");
+    return cachedConnection;
+  } catch (error) {
+    console.error("❌ MongoDB connection failed:", error.message);
+    throw new Error("Database connection failed");
+  }
+}
+
+// Middleware to ensure DB connection
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-// ✅ Main routes
+// Routes
 app.use("/auth", routes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/family", familyRoutes);
 app.use("/api/reports", reportRoutes);
 
-// ✅ Root test route
+// Test route
 app.get("/", (req, res) => {
-  res.send("✅ Backend is live & running on Vercel!");
+  res.send("✅ Backend is live & stable on Vercel!");
 });
 
-// ❌ No app.listen() here
 module.exports = app;
