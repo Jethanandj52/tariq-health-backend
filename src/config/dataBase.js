@@ -1,24 +1,20 @@
 const mongoose = require("mongoose");
 
-async function dbConnected() {
-  const dbUrl = process.env.DB_URL;
+let isConnected = false;
 
-  if (!dbUrl) {
-    console.error("❌ DB_URL missing in environment variables");
-    return;
-  }
-
+async function connectDB() {
+  if (isConnected) return;
   try {
-    console.log("⏳ Connecting to MongoDB...");
-    await mongoose.connect(dbUrl, {
+    await mongoose.connect(process.env.DB_URL, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // 5 sec timeout
+      serverSelectionTimeoutMS: 5000,
     });
+    isConnected = true;
     console.log("✅ MongoDB connected successfully!");
   } catch (err) {
     console.error("❌ MongoDB connection error:", err.message);
   }
 }
 
-module.exports = { dbConnected };
+module.exports = { connectDB };
