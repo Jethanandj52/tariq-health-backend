@@ -1,55 +1,49 @@
-// Load environment variables
+// src/app.js
 require("dotenv").config();
-
-// Import dependencies
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const serverless = require("serverless-http");
-
-// Import database and routes
+const serverless = require("serverless-http"); // 👈 must have
 const { dbConnected } = require("./config/dataBase");
 const { routes } = require("./routes/auth");
 const doctorRoutes = require("./routes/doctorRoutes");
 const familyRoutes = require("./routes/familyRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 
-// Initialize Express app
 const app = express();
 
-// Middleware setup
 app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://your-frontend.vercel.app"], // 👈 apna frontend URL lagao
+    origin: ["http://localhost:5173", "https://your-frontend.vercel.app"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
 
-// Routes setup
+// ✅ Main routes
 app.use("/auth", routes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/family", familyRoutes);
 app.use("/api/reports", reportRoutes);
 
-// Default route (test)
+// ✅ Root test route
 app.get("/", (req, res) => {
-  res.send("✅ Backend is live and running on Vercel!");
+  res.send("✅ Backend is live & running on Vercel!");
 });
 
-// Database connection
+// ✅ Connect database
 dbConnected()
   .then(() => console.log("✅ MongoDB connected successfully"))
-  .catch((err) => console.error("❌ Database connection failed:", err));
+  .catch((err) => console.error("❌ DB connection failed:", err));
 
-// Local development mode (optional)
+// ✅ Local run only
 if (process.env.NODE_ENV !== "production") {
   const port = process.env.PORT || 7000;
   app.listen(port, () => console.log(`🚀 Server running locally on port ${port}`));
 }
 
-// Export for Vercel serverless function
+// ✅ The magic export for Vercel
 module.exports = app;
-module.exports.handler = serverless(app);
+module.exports.handler = serverless(app); // 👈 ye line sabse zaroori hai
