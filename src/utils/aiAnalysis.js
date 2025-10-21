@@ -1,47 +1,80 @@
-const pdf = require("pdf-parse");
 const axios = require("axios");
 const Tesseract = require("tesseract.js");
+const PDFParser = require("pdf2json");
+const fs = require("fs");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 /* ==========================
-   🔍 Extract Text from PDF
+   🔍 Extract Text from PDF (pdf2json - Works on Vercel)
 ========================== */
 async function extractTextFromPDF(pdfUrl) {
-  const response = await axios.get(pdfUrl, { responseType: "arraybuffer" });
-  const data = await pdf(response.data);
-  return data.text;
+  try {
+    const response = await axios.get(pdfUrl, { responseType: "arraybuffer" });
+    const tempPath = `/tmp/temp_${Date.now()}.pdf`;
+    fs.writeFileSync(tempPath, Buffer.from(response.data));
+
+    return new Promise((resolve, reject) => {
+      const pdfParser = new PDFParser();
+
+      pdfParser.on("pdfParser_dataError", (errData) =>
+        reject(errData.parserError)
+      );
+
+      pdfParser.on("pdfParser_dataReady", (pdfData) => {
+        try {
+          let text = "";
+          pdfData.Pages.forEach((page) => {
+            page.Texts.forEach((t) => {
+              text += decodeURIComponent(t.R[0].T) + " ";
+            });
+          });
+          resolve(text.trim());
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      pdfParser.loadPDF(tempPath);
+    });
+  } catch (error) {
+    console.error("❌ PDF Extraction Failed:", error.message);
+    return "";
+  }
 }
 
 /* ==========================
-   🔍 Extract Text from Image (OCR)
+   🧠 Extract Text from Image (OCR)
 ========================== */
 async function extractTextFromImage(imageUrl) {
-  const {
-    data: { text },
-  } = await Tesseract.recognize(imageUrl, "eng");
-  return text;
+  try {
+    const {
+      data: { text },
+    } = await Tesseract.recognize(imageUrl, "eng");
+    return text;
+  } catch (err) {
+    console.error("❌ Image OCR Failed:", err.message);
+    return "";
+  }
 }
 
 /* ==========================
-   🤖 Generate AI Feedback (Gemini REST API)
+   🤖 Generate AI Feedback (Gemini API)
 ========================== */
 async function generateAIAnalysis(extractedText) {
   try {
-    if (!extractedText || extractedText.trim().length === 0) {
-      return { feedback: "❌ No readable text found in report." };
+    if (!extractedText || extractedText.trim().length < 20) {
+      return { feedback: "⚠ No readable text found in report." };
     }
 
     const prompt = `
-You are a helpful AI medical assistant.
-Analyze the following lab report and generate a structured response:
+You are an AI medical assistant. Analyze the following lab report and respond with:
+1️⃣ Summary of findings
+2️⃣ Possible health implications
+3️⃣ Recommendations
+4️⃣ Whether the report appears normal or abnormal
 
-1️⃣ Summary of key findings  
-2️⃣ Possible health implications  
-3️⃣ Recommendations for the patient  
-4️⃣ Is report normal or abnormal?
-
-Keep it short and clear for non-technical users.
+Keep it simple, clear, and under 250 words.
 
 Report Text:
 ${extractedText.slice(0, 8000)}
@@ -55,12 +88,12 @@ ${extractedText.slice(0, 8000)}
 
     const aiText =
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "⚠️ Gemini returned no output.";
+      "⚠ Gemini returned no output.";
 
     return { feedback: aiText };
   } catch (err) {
     console.error("AI Analysis error:", err.message);
-    return { error: "⚠️ AI analysis failed. Please try again later." };
+    return { error: "⚠ AI analysis failed. Please try again later." };
   }
 }
 
