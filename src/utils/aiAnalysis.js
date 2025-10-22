@@ -6,29 +6,23 @@ const fs = require("fs");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 /* ==========================
-   🔍 Extract Text from PDF (pdf2json - Works on Vercel)
+   🔍 Extract Text from PDF
 ========================== */
 async function extractTextFromPDF(pdfUrl) {
   try {
     const response = await axios.get(pdfUrl, { responseType: "arraybuffer" });
-    const tempPath = `/tmp/temp_${Date.now()}.pdf`;
+    const tempPath = `/tmp/pdf_${Date.now()}.pdf`;
     fs.writeFileSync(tempPath, Buffer.from(response.data));
 
     return new Promise((resolve, reject) => {
       const pdfParser = new PDFParser();
 
-      pdfParser.on("pdfParser_dataError", (errData) =>
-        reject(errData.parserError)
-      );
-
+      pdfParser.on("pdfParser_dataError", (err) => reject(err.parserError));
       pdfParser.on("pdfParser_dataReady", (pdfData) => {
         try {
-          let text = "";
-          pdfData.Pages.forEach((page) => {
-            page.Texts.forEach((t) => {
-              text += decodeURIComponent(t.R[0].T) + " ";
-            });
-          });
+          const text = pdfData.Pages.map((page) =>
+            page.Texts.map((t) => decodeURIComponent(t.R[0].T)).join(" ")
+          ).join(" ");
           resolve(text.trim());
         } catch (err) {
           reject(err);
@@ -37,21 +31,21 @@ async function extractTextFromPDF(pdfUrl) {
 
       pdfParser.loadPDF(tempPath);
     });
-  } catch (error) {
-    console.error("❌ PDF Extraction Failed:", error.message);
+  } catch (err) {
+    console.error("❌ PDF Extraction Failed:", err.message);
     return "";
   }
 }
 
 /* ==========================
-   🧠 Extract Text from Image (OCR)
+   🧠 Extract Text from Image
 ========================== */
 async function extractTextFromImage(imageUrl) {
   try {
     const {
       data: { text },
     } = await Tesseract.recognize(imageUrl, "eng");
-    return text;
+    return text.trim();
   } catch (err) {
     console.error("❌ Image OCR Failed:", err.message);
     return "";
@@ -59,24 +53,24 @@ async function extractTextFromImage(imageUrl) {
 }
 
 /* ==========================
-   🤖 Generate AI Feedback (Gemini API)
+   🤖 Generate AI Feedback (Gemini)
 ========================== */
 async function generateAIAnalysis(extractedText) {
   try {
-    if (!extractedText || extractedText.trim().length < 20) {
+    if (!extractedText || extractedText.length < 20) {
       return { feedback: "⚠ No readable text found in report." };
     }
 
     const prompt = `
-You are an AI medical assistant. Analyze the following lab report and respond with:
-1️⃣ Summary of findings
-2️⃣ Possible health implications
-3️⃣ Recommendations
-4️⃣ Whether the report appears normal or abnormal
+You are an AI medical assistant. Analyze this lab report and respond with:
+1. Summary of findings
+2. Possible health implications
+3. Recommendations
+4. Whether the report appears normal or abnormal
 
-Keep it simple, clear, and under 250 words.
+Keep your response simple and clear, under 250 words.
 
-Report Text:
+Report:
 ${extractedText.slice(0, 8000)}
 `;
 
@@ -93,12 +87,8 @@ ${extractedText.slice(0, 8000)}
     return { feedback: aiText };
   } catch (err) {
     console.error("AI Analysis error:", err.message);
-    return { error: "⚠ AI analysis failed. Please try again later." };
+    return { feedback: "⚠ AI analysis failed. Try again later." };
   }
 }
 
-module.exports = {
-  extractTextFromPDF,
-  extractTextFromImage,
-  generateAIAnalysis,
-};
+module.exports = { extractTextFromPDF, extractTextFromImage, generateAIAnalysis };
