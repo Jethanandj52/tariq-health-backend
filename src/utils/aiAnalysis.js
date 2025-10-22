@@ -94,7 +94,7 @@ ${limitedText}
     const response = await axios.post(
       apiUrl,
       { contents: [{ parts: [{ text: prompt }] }] },
-      { timeout: 30000, headers: { "Content-Type": "application/json" } }
+      { timeout: 3000, headers: { "Content-Type": "application/json" } }
     );
 
     const aiText =
