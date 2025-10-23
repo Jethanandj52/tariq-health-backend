@@ -69,52 +69,59 @@ async function extractTextFromImage(imageUrl) {
 }
 
 /* ==========================
-   ⚡ Generate AI Feedback (Gemini)
+   ⚡ Generate AI Feedback (Gemini 1.5 Flash Lite)
 ========================== */
 async function generateAIAnalysis(extractedText) {
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error("Gemini API key not found in environment variables.");
-    }
+    if (!GEMINI_API_KEY) throw new Error("Gemini API key missing.");
 
     if (!extractedText || extractedText.length < 30) {
-      return { feedback: "⚠ No readable text found in report." };
+      return { feedback: "⚠ No readable text found in the report." };
     }
 
     const limitedText = extractedText.slice(0, 3000);
 
     const prompt = `
-You are an AI medical assistant. Analyze this lab report and respond clearly with:
+You are an AI medical assistant. Analyze the following lab report and provide:
 1. Summary of findings
 2. Possible health implications
 3. Recommendations
-4. Whether the report appears normal or abnormal
-Keep the response concise (under 200 words).
+4. Overall assessment (Normal / Abnormal)
+Keep the explanation clear, short, and under 200 words.
 
 Report:
 ${limitedText}
 `;
 
-    console.log("⚙️ Sending request to Gemini API...");
+    console.log("⚙️ Sending request to Gemini 1.5 Flash Lite...");
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
     const response = await axios.post(
       apiUrl,
       { contents: [{ parts: [{ text: prompt }] }] },
-      { timeout: 10000, headers: { "Content-Type": "application/json" } }
+      {
+        timeout: 20000, // ⏳ Increased timeout for safety
+        headers: { "Content-Type": "application/json" },
+      }
     );
 
     const aiText =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "⚠ Gemini returned no output.";
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
+      "⚠ Gemini returned no response.";
 
-    console.log("✅ AI Analysis Completed");
+    console.log("✅ AI Analysis Completed Successfully");
     return { feedback: aiText };
   } catch (err) {
     console.error("❌ AI Analysis Error:", err.message);
-    return { feedback: "⚠ AI analysis failed or took too long. Please try again." };
+    return {
+      feedback: "⚠ AI analysis failed or took too long. Please try again.",
+    };
   }
 }
 
-module.exports = { extractTextFromPDF, extractTextFromImage, generateAIAnalysis };
+module.exports = {
+  extractTextFromPDF,
+  extractTextFromImage,
+  generateAIAnalysis,
+};
