@@ -29,13 +29,14 @@ const storage = new CloudinaryStorage({
     const isPDF = file.mimetype === "application/pdf";
     return {
       folder: "healthapp/reports",
-      resource_type: isPDF ? "raw" : "image", // PDFs = raw
+      resource_type: isPDF ? "raw" : "image",
       allowed_formats: ["jpg", "jpeg", "png", "pdf"],
-      access_mode: "public",
+      type: "upload",  // ensures public delivery
       public_id: `${Date.now()}-${file.originalname.split(".")[0]}`,
     };
   },
 });
+
 
 const upload = multer({ storage });
 
