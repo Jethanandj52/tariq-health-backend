@@ -2,11 +2,11 @@ const axios = require("axios");
 const PDFParser = require("pdf2json");
 const fs = require("fs");
 
-const GEMINI_API_KEY = "AIzaSyCF8IutexTkZhF6k155aDHmTXQ59kHWJwA";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyCF8IutexTkZhF6k155aDHmTXQ59kHWJwA";
 const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY;
 
 /* ==========================
-   🔍 Extract Text from PDF
+   📄 Extract Text from PDF
 ========================== */
 async function extractTextFromPDF(pdfUrl) {
   try {
@@ -41,7 +41,7 @@ async function extractTextFromPDF(pdfUrl) {
 }
 
 /* ==========================
-   🧠 Extract Text from Image (OCR.space)
+   🖼️ Extract Text from Image (OCR.space)
 ========================== */
 async function extractTextFromImage(imageUrl) {
   try {
@@ -69,7 +69,7 @@ async function extractTextFromImage(imageUrl) {
 }
 
 /* ==========================
-   ⚡ Generate AI Feedback (Gemini 1.5 Flash Lite)
+   ⚡ Generate AI Feedback (Gemini 2.0 Flash)
 ========================== */
 async function generateAIAnalysis(extractedText) {
   try {
@@ -93,11 +93,10 @@ Report:
 ${limitedText}
 `;
 
-    console.log("⚙️ Sending request to Gemini 1.5 Flash...");
+    console.log("⚙️ Sending request to Gemini 2.0 Flash...");
 
-    // ✅ USE latest stable model (NOT 'lite')
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
+    // ✅ Latest API endpoint for Gemini 2.0 Flash
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     const body = {
       contents: [
@@ -131,8 +130,6 @@ ${limitedText}
     };
   }
 }
-
-
 
 module.exports = {
   extractTextFromPDF,
