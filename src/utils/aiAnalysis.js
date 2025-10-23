@@ -80,6 +80,7 @@ async function generateAIAnalysis(extractedText) {
     }
 
     const limitedText = extractedText.slice(0, 3000);
+
     const prompt = `
 You are an AI medical assistant. Analyze this lab report and respond clearly with:
 1. Summary of findings
@@ -92,9 +93,10 @@ Report:
 ${limitedText}
 `;
 
-    console.log("⚙️ Sending request to Gemini 1.5 Flash Lite...");
+    console.log("⚙️ Sending request to Gemini 1.5 Flash...");
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    // ✅ USE latest stable model (NOT 'lite')
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     const body = {
       contents: [
@@ -103,33 +105,32 @@ ${limitedText}
           parts: [{ text: prompt }],
         },
       ],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 512,
-      },
     };
 
     const response = await axios.post(apiUrl, body, {
-      headers: { "Content-Type": "application/json" },
-      timeout: 30000,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      timeout: 20000,
     });
+
+    console.log("🧩 Gemini Response:", response.data);
 
     const aiText =
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "⚠ Gemini returned no output.";
 
-    console.log("✅ AI Analysis Completed Successfully!");
+    console.log("✅ AI Analysis Completed!");
     return { feedback: aiText };
   } catch (err) {
-    console.error("❌ AI Analysis Error:", err.message);
+    console.error("❌ AI Analysis Error:", err.response?.data || err.message);
     return {
       feedback:
         "⚠ AI analysis failed or took too long. Please try again later.",
     };
   }
 }
+
 
 
 module.exports = {
