@@ -76,18 +76,17 @@ async function generateAIAnalysis(extractedText) {
     if (!GEMINI_API_KEY) throw new Error("Gemini API key missing.");
 
     if (!extractedText || extractedText.length < 30) {
-      return { feedback: "⚠ No readable text found in the report." };
+      return { feedback: "⚠ No readable text found in report." };
     }
 
     const limitedText = extractedText.slice(0, 3000);
-
     const prompt = `
-You are an AI medical assistant. Analyze the following lab report and provide:
+You are an AI medical assistant. Analyze this lab report and respond clearly with:
 1. Summary of findings
 2. Possible health implications
 3. Recommendations
-4. Overall assessment (Normal / Abnormal)
-Keep the explanation clear, short, and under 200 words.
+4. Whether the report appears normal or abnormal
+Keep the response concise (under 200 words).
 
 Report:
 ${limitedText}
@@ -97,28 +96,41 @@ ${limitedText}
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
-    const response = await axios.post(
-      apiUrl,
-      { contents: [{ parts: [{ text: prompt }] }] },
-      {
-        timeout: 20000, // ⏳ Increased timeout for safety
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    const body = {
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 512,
+      },
+    };
+
+    const response = await axios.post(apiUrl, body, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 30000,
+    });
 
     const aiText =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-      "⚠ Gemini returned no response.";
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "⚠ Gemini returned no output.";
 
-    console.log("✅ AI Analysis Completed Successfully");
+    console.log("✅ AI Analysis Completed Successfully!");
     return { feedback: aiText };
   } catch (err) {
     console.error("❌ AI Analysis Error:", err.message);
     return {
-      feedback: "⚠ AI analysis failed or took too long. Please try again.",
+      feedback:
+        "⚠ AI analysis failed or took too long. Please try again later.",
     };
   }
 }
+
 
 module.exports = {
   extractTextFromPDF,
