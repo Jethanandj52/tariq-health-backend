@@ -1,9 +1,9 @@
 const axios = require("axios");
-const Tesseract = require("tesseract.js");
 const PDFParser = require("pdf2json");
 const fs = require("fs");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY;
 
 /* ==========================
    🔍 Extract Text from PDF
@@ -41,16 +41,26 @@ async function extractTextFromPDF(pdfUrl) {
 }
 
 /* ==========================
-   🧠 Extract Text from Image
+   🧠 Extract Text from Image (OCR.space)
 ========================== */
 async function extractTextFromImage(imageUrl) {
   try {
-    console.log("🖼️ Performing OCR on image:", imageUrl);
-    const {
-      data: { text },
-    } = await Tesseract.recognize(imageUrl, "eng", {
-      logger: (m) => console.log(m.status),
+    console.log("🖼️ Extracting text using OCR.space:", imageUrl);
+
+    const formData = new URLSearchParams();
+    formData.append("url", imageUrl);
+    formData.append("language", "eng");
+    formData.append("isOverlayRequired", "false");
+
+    const res = await axios.post("https://api.ocr.space/parse/image", formData, {
+      headers: {
+        apikey: OCR_SPACE_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      timeout: 20000,
     });
+
+    const text = res.data.ParsedResults?.[0]?.ParsedText || "";
     return text.trim();
   } catch (err) {
     console.error("❌ Image OCR Failed:", err.message);
@@ -71,7 +81,6 @@ async function generateAIAnalysis(extractedText) {
       return { feedback: "⚠ No readable text found in report." };
     }
 
-    // ✂️ Limit text size for faster response
     const limitedText = extractedText.slice(0, 3000);
 
     const prompt = `
@@ -88,13 +97,12 @@ ${limitedText}
 
     console.log("⚙️ Sending request to Gemini API...");
 
-    // Use smaller, faster Gemini model (if flash is slow)
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
     const response = await axios.post(
       apiUrl,
       { contents: [{ parts: [{ text: prompt }] }] },
-      { timeout: 3000, headers: { "Content-Type": "application/json" } }
+      { timeout: 10000, headers: { "Content-Type": "application/json" } }
     );
 
     const aiText =
