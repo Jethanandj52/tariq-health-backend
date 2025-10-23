@@ -4,7 +4,7 @@ const fs = require("fs");
 
 const GEMINI_API_KEY =
   process.env.GEMINI_API_KEY ||
-  "AIzaSyCF8IutexTkZhF6k155aDHmTXQ59kHWJwA"; // valid Gemini key
+  "AIzaSyCF8IutexTkZhF6k155aDHmTXQ59kHWJwA"; // apni valid Gemini key
 const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY;
 
 /* 📄 Extract Text from PDF */
@@ -57,20 +57,55 @@ async function extractTextFromImage(imageUrl) {
   }
 }
 
-/* ⚡ AI Feedback (Gemini 2.0 Flash) */
-async function generateAIAnalysis(extractedText) {
+/* 🌐 Translation Helper */
+async function translateTextGemini(text, targetLang) {
+  try {
+    if (!text || !targetLang) return text;
+
+    const langFull =
+      targetLang === "romanUrdu"
+        ? "Roman Urdu"
+        : targetLang === "romanHindi"
+        ? "Roman Hindi"
+        : "English";
+
+    const prompt = `Translate the following English text into ${langFull}. 
+Use Roman script if Urdu or Hindi. Keep natural and accurate tone.
+
+Text:
+${text}`;
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const body = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+
+    const response = await axios.post(apiUrl, body, {
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return (
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "⚠ Translation failed."
+    );
+  } catch (err) {
+    console.error("❌ Translation error:", err.message);
+    return "⚠ Translation failed.";
+  }
+}
+
+/* ⚡ AI Feedback */
+async function generateAIAnalysis(extractedText, language = "english") {
   try {
     if (!GEMINI_API_KEY) throw new Error("Gemini API key missing.");
     if (!extractedText || extractedText.length < 30)
       return { feedback: "⚠ No readable text found in report." };
 
     const prompt = `
-You are an AI medical assistant. Analyze this lab report and respond clearly with:
+You are an AI medical assistant. Analyze this lab report and respond with:
 1. Summary of findings
 2. Possible health implications
 3. Recommendations
-4. Whether the report appears normal or abnormal
-Keep the response concise (under 200 words).
+4. Whether the report is normal or abnormal
+Keep it under 200 words.
 
 Report:
 ${extractedText.slice(0, 3000)}
@@ -87,46 +122,16 @@ ${extractedText.slice(0, 3000)}
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "⚠ Gemini returned no output.";
 
-    return { feedback: aiText };
+    // Translate if language set
+    let translated = aiText;
+    if (language === "romanHindi" || language === "romanUrdu") {
+      translated = await translateTextGemini(aiText, language);
+    }
+
+    return { feedback: aiText, translated };
   } catch (err) {
-    console.error("❌ AI Analysis Error:", err.response?.data || err.message);
-    return { feedback: "⚠ AI analysis failed. Try again later." };
-  }
-}
-
-/* 🌍 AI Translation (Gemini) */
-async function translateTextGemini(text, targetLang) {
-  try {
-    if (!text || !targetLang) throw new Error("Missing text or language");
-
-    const langFull =
-      targetLang === "romanUrdu"
-        ? "Roman Urdu"
-        : targetLang === "romanHindi"
-        ? "Roman Hindi"
-        : "English";
-
-    const prompt = `Translate this text into ${langFull}. 
-Use Roman script if Urdu or Hindi. Keep the tone natural and meaning accurate.
-
-Text:
-${text}`;
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-    const body = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-
-    const response = await axios.post(apiUrl, body, {
-      headers: { "Content-Type": "application/json" },
-    });
-
-    const translated =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "⚠ Translation failed.";
-
-    return translated;
-  } catch (err) {
-    console.error("❌ Translation error:", err.message);
-    return "⚠ Translation failed.";
+    console.error("❌ AI Analysis Error:", err.message);
+    return { feedback: "⚠ AI analysis failed." };
   }
 }
 
