@@ -65,6 +65,7 @@ app.use("/api/reports", reportRoutes);
 app.get("/", (req, res) => {
   res.send("✅ Backend is live & stable on Vercel!");
 });
- 
+ console.log("🔑 Gemini Key:", process.env.GEMINI_API_KEY ? "Loaded ✅" : "Missing ❌");
+
 
 module.exports = app;
