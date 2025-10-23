@@ -60,7 +60,7 @@ async function extractTextFromImage(imageUrl) {
       timeout: 20000,
     });
 
-    const text = res.data.ParsedResults?.[0]?.ParsedText || "";
+    const text = res.data?.ParsedResults?.[0]?.ParsedText || "";
     return text.trim();
   } catch (err) {
     console.error("❌ Image OCR Failed:", err.message);
@@ -69,51 +69,65 @@ async function extractTextFromImage(imageUrl) {
 }
 
 /* ==========================
-   ⚡ Generate AI Feedback (Gemini)
+   ⚡ Generate AI Feedback (Gemini 2.5)
 ========================== */
 async function generateAIAnalysis(extractedText) {
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error("Gemini API key not found in environment variables.");
-    }
+    if (!GEMINI_API_KEY) throw new Error("❌ Gemini API key missing!");
 
     if (!extractedText || extractedText.length < 30) {
-      return { feedback: "⚠ No readable text found in report." };
+      return { feedback: "⚠ No readable text found in the report." };
     }
 
-    const limitedText = extractedText.slice(0, 3000);
+    const limitedText = extractedText.slice(0, 10000);
 
     const prompt = `
-You are an AI medical assistant. Analyze this lab report and respond clearly with:
-1. Summary of findings
-2. Possible health implications
-3. Recommendations
-4. Whether the report appears normal or abnormal
-Keep the response concise (under 200 words).
+You are an advanced AI medical assistant.
+Analyze the following lab report text and respond clearly with:
+
+1. 🩺 Summary of Findings  
+2. ⚠️ Possible Health Implications  
+3. 💡 Recommendations  
+4. 🧠 Overall Assessment (Normal/Abnormal)  
+
+Keep the answer short, medically sound, and human-readable.
 
 Report:
 ${limitedText}
 `;
 
-    console.log("⚙️ Sending request to Gemini API...");
+    console.log("⚙️ Sending request to Gemini 2.5 API...");
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     const response = await axios.post(
       apiUrl,
-      { contents: [{ parts: [{ text: prompt }] }] },
-      { timeout: 10000, headers: { "Content-Type": "application/json" } }
+      {
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 20000,
+      }
     );
 
+    // Debug log to inspect full Gemini response
+    console.log("🧩 Gemini raw response:", JSON.stringify(response.data, null, 2));
+
     const aiText =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
       "⚠ Gemini returned no output.";
 
     console.log("✅ AI Analysis Completed");
     return { feedback: aiText };
   } catch (err) {
     console.error("❌ AI Analysis Error:", err.message);
-    return { feedback: "⚠ AI analysis failed or took too long. Please try again." };
+    return { feedback: "⚠ AI analysis failed. Please try again later." };
   }
 }
 
