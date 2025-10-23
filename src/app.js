@@ -38,6 +38,7 @@ async function connectToDatabase() {
       serverSelectionTimeoutMS: 5000,
     });
     console.log("✅ MongoDB connected successfully");
+    console.log("🔑 Gemini Key:", process.env.GEMINI_API_KEY ? "Loaded ✅" : "Missing ❌");
     return cachedConnection;
   } catch (error) {
     console.error("❌ MongoDB connection failed:", error.message);
@@ -65,7 +66,6 @@ app.use("/api/reports", reportRoutes);
 app.get("/", (req, res) => {
   res.send("✅ Backend is live & stable on Vercel!");
 });
- console.log("🔑 Gemini Key:", process.env.GEMINI_API_KEY ? "Loaded ✅" : "Missing ❌");
 
 
 module.exports = app;

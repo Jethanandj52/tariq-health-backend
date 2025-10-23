@@ -2,7 +2,7 @@ const axios = require("axios");
 const PDFParser = require("pdf2json");
 const fs = require("fs");
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = "AIzaSyCF8IutexTkZhF6k155aDHmTXQ59kHWJwA";
 const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY;
 
 /* ==========================
