@@ -15,25 +15,14 @@ const app = express();
 // Middlewares
 app.use(express.json());
 app.use(cookieParser());
-
 app.use(
   cors({
-    origin: [
-      "https://tariq-health-frontend.vercel.app", // your frontend deployed domain
-      "http://localhost:5173" // for local testing
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+    origin: ["http://localhost:5173", "https://tariq-health-frontend.vercel.app/]"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    
+     credentials: true
   })
 );
-
-// Handle preflight requests for all routes
-app.options("*", cors({
-  origin: ["http://localhost:5173", "https://tariq-health-frontend.vercel.app"],
-  credentials: true,
-}));
-
 
 // Lazy DB Connection
 let cachedConnection = null;
